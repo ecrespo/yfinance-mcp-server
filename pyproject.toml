@@ -1,0 +1,10 @@
+[project]
+name = "yfinance-mcp-server"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "loguru>=0.7.3",
+    "mcp[cli]>=1.15.0",
+    "yfinance>=0.2.66",
+]
