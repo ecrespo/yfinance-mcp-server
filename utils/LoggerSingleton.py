@@ -1,64 +1,70 @@
-
-import sys
 import os
-from datetime import datetime
-from loguru import logger
+import tempfile
+import logging
+from pathlib import Path
 
 class LoggerSingleton:
-    """
-    A singleton class to configure and manage logging in an application.
-
-    The LoggerSingleton class ensures that only one instance of the logger
-    configuration exists across the application. It sets up appropriate
-    logging handlers for both console and file output. The logs are
-    stored in a `logs` directory, with automatic file rotation and
-    retention policies.
-
-    :ivar _instance: The singleton instance of the logger.
-    :type _instance: logger
-    """
     _instance = None
-
-    def __new__(cls, app_name="dice-mcp-server"):
+    
+    def __new__(cls, app_name="yfinance-mcp-server"):
         if cls._instance is None:
-            # Remove any existing handlers
-            logger.remove()
-
-            # Create logs directory if it doesn't exist
-            logs_dir = "logs"
-            if not os.path.exists(logs_dir):
-                os.makedirs(logs_dir)
-
-            # Generate log filename with date
-            log_filename = os.path.join(
-                logs_dir,
-                f"{datetime.now().strftime('%Y-%m-%d')}.log"
-            )
-
-            # Add handler for console output (real-time logs)
-            logger.add(
-                sys.stdout,
-                colorize=True,
-                format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
-                       f"<blue>{app_name}</blue> | "
-                       "{level} | "
-                       "<level>{message}</level>",
-            )
-
-            # Add handler for file output
-            logger.add(
-                log_filename,
-                rotation="12:00",  # Create new file at midnight
-                retention="30 days",  # Keep logs for 30 days
-                format="{time:YYYY-MM-DD HH:mm:ss.SSS} | "
-                       f"{app_name} | "
-                       "{level} | "
-                       "{message}",
-            )
-
-            cls._instance = logger
-
+            cls._instance = super().__new__(cls)
+            cls._instance._initialize_logger(app_name)
         return cls._instance
+    
+    def _initialize_logger(self, app_name):
+        # Try multiple locations for logs directory
+        possible_log_dirs = [
+            "logs",  # Current directory
+            os.path.expanduser("~/logs"),  # User home directory
+            f"/tmp/{app_name}_logs",  # Temporary directory
+            tempfile.gettempdir()  # System temp directory
+        ]
+        
+        logs_dir = None
+        for log_dir in possible_log_dirs:
+            try:
+                os.makedirs(log_dir, exist_ok=True)
+                # Test if we can write to this directory
+                test_file = os.path.join(log_dir, 'test_write.tmp')
+                with open(test_file, 'w') as f:
+                    f.write('test')
+                os.remove(test_file)
+                logs_dir = log_dir
+                break
+            except (PermissionError, OSError):
+                continue
+        
+        # Set up logger
+        self.logger = logging.getLogger(app_name)
+        self.logger.setLevel(logging.INFO)
+        
+        # Console handler (always works)
+        console_handler = logging.StreamHandler()
+        console_formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        console_handler.setFormatter(console_formatter)
+        self.logger.addHandler(console_handler)
+        
+        # File handler (only if we found a writable directory)
+        if logs_dir:
+            try:
+                log_file = os.path.join(logs_dir, f'{app_name}.log')
+                file_handler = logging.FileHandler(log_file)
+                file_formatter = logging.Formatter(
+                    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+                )
+                file_handler.setFormatter(file_formatter)
+                self.logger.addHandler(file_handler)
+                self.logger.info(f"Logging to file: {log_file}")
+            except Exception as e:
+                self.logger.warning(f"Could not set up file logging: {e}")
+        else:
+            self.logger.warning("Could not find writable directory for logs. Logging to console only.")
+    
+    def get_logger(self):
+        return self.logger
 
-# Create a logger instance
-logger = LoggerSingleton(app_name="dice-mcp-server")  # noqa: F811
+# Create the singleton instance
+logger = LoggerSingleton(app_name="yfinance-mcp-server").get_logger()

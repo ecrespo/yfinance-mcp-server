@@ -127,6 +127,25 @@ def compare_stocks(symbol1: str, symbol2: str) -> str:
     return result
 
 @mcp.tool()
+def list_stock_symbols(query: str, limit: int = 10) -> list[str]:
+    """
+    Searches Yahoo Finance for symbols matching the query and returns up to `limit` ticker symbols.
+
+    :param query: A text query (e.g., company name or partial ticker).
+    :param limit: Maximum number of symbols to return. Defaults to 10.
+    :return: A list of ticker symbols (strings). Returns an empty list if none found or on error.
+    """
+    try:
+        result = yf.search(query)
+        quotes = result.get("quotes", []) if isinstance(result, dict) else []
+        symbols = [q.get("symbol") for q in quotes if isinstance(q, dict) and q.get("symbol")]
+        return symbols[: max(0, int(limit))]
+    except Exception:
+        logger.exception("Error searching for stock symbols")
+        return []
+
+
+@mcp.tool()
 def list_tools() -> str:
     """
         Lists all available tools in this MCP server.
@@ -153,7 +172,10 @@ def list_tools() -> str:
         "4. compare_stocks(symbol1: str, symbol2: str) -> str",
         "   Compares the current stock prices of two given stock symbols.",
         "",
-        "5. list_tools() -> str",
+        "5. list_stock_symbols(query: str, limit: int = 10) -> list[str]",
+        "   Searches Yahoo Finance for symbols matching the query and returns up to `limit` symbols.",
+        "",
+        "6. list_tools() -> str",
         "   Lists all available tools in this MCP server (this tool).",
     ]
 
