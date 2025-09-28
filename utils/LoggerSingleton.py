@@ -5,6 +5,18 @@ from datetime import datetime
 from loguru import logger
 
 class LoggerSingleton:
+    """
+    A singleton class to configure and manage logging in an application.
+
+    The LoggerSingleton class ensures that only one instance of the logger
+    configuration exists across the application. It sets up appropriate
+    logging handlers for both console and file output. The logs are
+    stored in a `logs` directory, with automatic file rotation and
+    retention policies.
+
+    :ivar _instance: The singleton instance of the logger.
+    :type _instance: logger
+    """
     _instance = None
 
     def __new__(cls, app_name="dice-mcp-server"):
